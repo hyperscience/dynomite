@@ -36,15 +36,11 @@ RUN apt-get update && \
 	libtool \
 	software-properties-common \
 	redis-server \
-	tcl8.5 
+	tcl8.5
 
 # Clone the Dynomite Git
 RUN git clone https://github.com/Netflix/dynomite.git
 RUN echo 'Git repo has been cloned in your Docker VM'
-
-RUN echo 'copy file'
-COPY scripts/startup.sh dynomite/startup.sh
-RUN echo 'done copying file'
 
 # Move to working directory
 WORKDIR dynomite/
@@ -76,7 +72,15 @@ EXPOSE 8102
 
 
 # Setting overcommit for Redis to be able to do BGSAVE/BGREWRITEAOF
+# TODO: based on redis log desipte this RUN the effective value is 0
 RUN sysctl vm.overcommit_memory=1
 
-# Set the entry-point to be the startup script
-ENTRYPOINT ["/dynomite/startup.sh"]
+ADD https://github.com/krallin/tini/releases/download/v0.18.0/tini /tini
+RUN chmod +x /tini
+
+RUN echo 'copy files'
+COPY scripts/startup.sh /dynomite/startup.sh
+COPY configs/redis.conf /etc/redis/redis.conf
+RUN echo 'done copying files'
+
+ENTRYPOINT ["/tini", "-s", "--", "/dynomite/startup.sh"]
